@@ -1,36 +1,42 @@
-import React from "react";
-import { Card, CardContent, CardMedia, Typography } from "@mui/material";
+import React, { useState } from "react";
+import { Card, CardContent, CardMedia, Typography, Skeleton } from "@mui/material";
 
 function MovieCard({ movie }) {
+  const [imageLoaded, setImageLoaded] = useState(false);
+
   return (
     <Card
       sx={{
         margin: "15px",
         width: 170,
+        height: 300, // Chiều cao cố định để tránh giãn nở
         backgroundColor: "#2b2b2b",
         color: "white",
         transition: "transform 0.2s ease, background-color 0.2s ease",
-        "&:hover": {    
+        "&:hover": {
           transform: "scale(1.05)",
           backgroundColor: "#3a3a3a",
         },
       }}
-    > 
+    >
+      {!imageLoaded && <Skeleton variant="rectangular" width={170} height={225} />}
       <CardMedia
         component="img"
         height="225"
         image={movie.poster_url}
         alt={movie.title}
+        onLoad={() => setImageLoaded(true)}
+        sx={{
+          display: imageLoaded ? "block" : "none", // Hiển thị ảnh khi đã load
+          width: "100%",
+          objectFit: "cover",
+        }}
       />
       <CardContent sx={{ padding: "8px", textAlign: "center" }}>
         <Typography variant="body2" component="div" noWrap>
           {movie.title}
         </Typography>
-        <Typography
-          variant="caption"
-          color="textSecondary"
-          sx={{ color: "gray" }}
-        >
+        <Typography variant="caption" color="textSecondary" sx={{ color: "gray" }}>
           {movie.release_date}
         </Typography>
       </CardContent>

@@ -5,7 +5,7 @@ def get_movie_image(title):
     url = f"https://api.themoviedb.org/3/search/movie?api_key={api_key}&query={title}"
     response = requests.get(url)
     data = response.json()
-    # print(data)
+    print(data)
     if data['results']:
         movie = data['results'][0]
         poster_path = movie['poster_path']

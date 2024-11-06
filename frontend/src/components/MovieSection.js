@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
-import LazyLoad from "react-lazyload";
 import { Box, Typography } from "@mui/material";
 import Carousel from "react-material-ui-carousel";
 import MovieCard from "./MovieCard";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
+import LazyLoad from "react-lazyload";
 
 function MovieSection({ title }) {
     const [movies, setMovies] = useState([]);
@@ -35,8 +35,8 @@ function MovieSection({ title }) {
     };
 
     const slides = [];
-    for (let i = 0; i < movies.length; i += 5) {
-        slides.push(movies.slice(i, i + 5));
+    for (let i = 0; i < movies.length; i += 7) {
+        slides.push(movies.slice(i, i + 7));
     }
 
     return (
@@ -47,28 +47,29 @@ function MovieSection({ title }) {
 
             <Carousel
                 navButtonsAlwaysVisible
-                animation="slide"
+                animation="fade"
                 indicators={false}
+                interval={5000} // Tăng thời gian chuyển đổi (5000ms = 5 giây)
                 NextIcon={<ArrowForwardIosIcon />}
                 PrevIcon={<ArrowBackIosNewIcon />}
+                sx={{ width: "100%", overflow: "visible" }}
                 onChange={() => loadMore()} // Gọi loadMore khi chuyển slide
             >
                 {slides.map((slide, index) => (
-                    <Box
-                        key={index}
-                        sx={{
-                            display: "flex",
-                            justifyContent: "center",
-                            gap: 2,
-                            paddingBottom: 2,
-                        }}
-                    >
-                        {slide.map((movie) => (
-                            <LazyLoad key={movie.id} height={225} offset={100} once>
-                                <MovieCard movie={movie} />
-                            </LazyLoad>
-                        ))}
-                    </Box>
+                    // <LazyLoad key={index} height={250} offset={100} once>
+                        <Box
+                            sx={{
+                                display: "flex",
+                                justifyContent: "center",
+                                gap: 2,
+                                paddingBottom: 2,
+                            }}
+                        >
+                            {slide.map((movie) => (
+                                <MovieCard key={movie.id} movie={movie} />
+                            ))}
+                        </Box>
+                    // </LazyLoad>
                 ))}
             </Carousel>
         </Box>

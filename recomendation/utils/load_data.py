@@ -99,3 +99,47 @@ def get_poster_urls():
         else:
             print(f"No results found for '{title}'")
 
+
+
+def get_movie_details():
+    api_key = "9de9e07ab5ab14a81cd1467c9bc145f9"
+    base_image_url = "https://image.tmdb.org/t/p/w500"  # URL cơ bản cho ảnh poster
+
+    for movie in tqdm(Movie.objects.all(), desc="Loading Movie Details"):
+        # Loại bỏ năm phát hành trong tiêu đề (nếu có)
+        title = re.sub(r"\s\(\d{4}\)$", "", movie.title)
+        year = movie.release_date.year if movie.release_date else None
+
+        # TMDb API để tìm kiếm phim
+        search_url = f"https://api.themoviedb.org/3/search/movie?api_key={api_key}&query={title}"
+        if year:
+            search_url += f"&year={year}"
+
+        response = requests.get(search_url)
+        data = response.json()
+
+        if data['results']:
+            movie_data = data['results'][0]  # Lấy kết quả đầu tiên trong tìm kiếm
+            movie.poster_url = f"{base_image_url}{movie_data.get('poster_path')}"
+            movie.overview = movie_data.get('overview')
+
+            # Gọi API chi tiết để lấy thêm thông tin
+            movie_id = movie_data['id']
+            details_url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={api_key}&append_to_response=credits"
+            details_response = requests.get(details_url)
+            details_data = details_response.json()
+
+            # Lấy runtime
+            movie.runtime = details_data.get('runtime')
+
+            # Lấy đạo diễn từ credits
+            directors = [crew['name'] for crew in details_data.get('credits', {}).get('crew', []) if crew['job'] == 'Director']
+            movie.director = ', '.join(directors)
+
+            # Lấy danh sách diễn viên
+            cast = [actor['name'] for actor in details_data.get('credits', {}).get('cast', [])[:5]]
+            movie.cast = ', '.join(cast)
+
+            movie.save()
+        else:
+            print(f"No results found for '{title}'")

@@ -17,10 +17,12 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.urls import path
-from recomendation.views import home
+from recomendation.views import home, movie_detail
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('recomendation.urls')),  # Thêm đường dẫn API
+    path('api/movies/<int:movie_id>/', movie_detail, name='movie_detail'),
     path('', home),  # Đường dẫn cho trang chủ
 ]
