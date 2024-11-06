@@ -48,10 +48,19 @@ function App() {
         <Box sx={{ overflow: "auto" }}>
           <List>
             {sidebarItems.map((item) => (
-              <ListItem button key={item.text}>
-                <ListItemIcon sx={{ color: "white" }}>{item.icon}</ListItemIcon>
-                <ListItemText primary={item.text} />
-              </ListItem>
+              <ListItem
+              button
+              key={item.text}
+              sx={{
+                "&:hover": {
+                  backgroundColor: "#444",
+                },
+              }}
+            >
+              <ListItemIcon sx={{ color: "white" }}>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.text} />
+            </ListItem>
+            
             ))}
           </List>
         </Box>

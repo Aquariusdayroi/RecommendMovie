@@ -29,6 +29,7 @@ function HomePage() {
           ),
         }}
       />
+      
       <MovieSection title="On Deck" />
       <MovieSection title="Recently Added" />
       <MovieSection title="Watch Later" />

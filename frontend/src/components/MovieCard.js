@@ -9,16 +9,16 @@ function MovieCard({ movie }) {
         width: 170,
         backgroundColor: "#2b2b2b",
         color: "white",
-        transition: "transform 0.2s",
-        "&:hover": {
+        transition: "transform 0.2s ease, background-color 0.2s ease",
+        "&:hover": {    
           transform: "scale(1.05)",
           backgroundColor: "#3a3a3a",
         },
       }}
-    >
+    > 
       <CardMedia
         component="img"
-        height="180"
+        height="225"
         image={movie.poster_url}
         alt={movie.title}
       />
