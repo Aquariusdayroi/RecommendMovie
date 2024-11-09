@@ -1,5 +1,7 @@
 from django.db import models
 from django.utils import timezone
+from django.contrib.auth.models import User 
+
 
 class Movie(models.Model):
     title = models.CharField(max_length=200)
@@ -17,9 +19,9 @@ class Movie(models.Model):
 
 class Rating(models.Model):
     movie = models.ForeignKey(Movie, on_delete=models.CASCADE)
-    user_id = models.IntegerField()
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     rating = models.IntegerField()
-    timestamp = models.DateTimeField(default=timezone.now)  # Đặt mặc định là thời gian hiện tại
+    timestamp = models.DateTimeField(default=timezone.now) # Đặt mặc định là thời gian hiện tại
 
     def __str__(self):
-        return f"{self.user_id} - {self.movie.title} - {self.rating}"
+        return f"{self.user.username} - {self.movie.title} - {self.rating}"

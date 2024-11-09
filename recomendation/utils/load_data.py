@@ -2,9 +2,12 @@ import os
 from django.utils import timezone
 from datetime import datetime
 from recomendation.models import Movie, Rating
+from django.contrib.auth import get_user_model
 from tqdm import tqdm
 import requests 
 import re
+
+
 
 def load_movies():
     with open('./crossDomainRecommenderSystem-master/movielens/u.item', 'r', encoding='ISO-8859-1') as f:
@@ -43,7 +46,7 @@ def load_movies():
             )
 
 
-
+User = get_user_model()
 
 def load_ratings():
     with open('./crossDomainRecommenderSystem-master/movielens/u.data', 'r') as f:
@@ -53,19 +56,24 @@ def load_ratings():
             user_id = int(parts[0])
             movie_id = int(parts[1])
             rating_value = int(parts[2])
-            # Chuyển timestamp sang múi giờ hiện tại
             timestamp = timezone.make_aware(datetime.fromtimestamp(int(parts[3])))
 
-            # Kiểm tra xem ẽphim có tồn tại trong cơ sở dữ liệu không
+            # Kiểm tra xem phim có tồn tại trong cơ sở dữ liệu không
             try:
                 movie = Movie.objects.get(id=movie_id)
+
+                # Kiểm tra và tạo User nếu chưa tồn tại
+                user, created = User.objects.get_or_create(
+                    id=user_id,
+                    defaults={"username": f"user_{user_id}", "email": f"user_{user_id}@gmail.com"}
+                )
+
                 # Tạo hoặc cập nhật đánh giá
                 Rating.objects.update_or_create(
                     movie=movie,
-                    user_id=user_id,
+                    user=user,
                     defaults={"rating": rating_value, "timestamp": timestamp}
                 )
-        
             except Movie.DoesNotExist:
                 print(f"Movie with ID {movie_id} not found.")
 

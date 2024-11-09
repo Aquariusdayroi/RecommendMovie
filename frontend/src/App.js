@@ -59,7 +59,9 @@ function App() {
                     },
                   }}
                 >
-                  <ListItemIcon sx={{ color: "white" }}>{item.icon}</ListItemIcon>
+                  <ListItemIcon sx={{ color: "white" }}>
+                    {item.icon}
+                  </ListItemIcon>
                   <ListItemText primary={item.text} />
                 </ListItem>
               ))}
@@ -93,7 +95,8 @@ function App() {
           {/* Sử dụng Routes để điều hướng */}
           <Routes>
             <Route path="/" element={<HomePage />} />
-            <Route path="/movies/:id" element={<MovieDetail />} /> {/* Route chi tiết phim */}
+            <Route path="/movie/:id" element={<MovieDetail />} />{" "}
+            {/* Route chi tiết phim */}
           </Routes>
         </Box>
       </Box>
