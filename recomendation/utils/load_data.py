@@ -1,8 +1,12 @@
-import os
 from django.utils import timezone
 from datetime import datetime
-from recomendation.models import Movie, Rating
+from recomendation.models import Movie, Rating, UserProfile
+from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model
+
+
+import csv
+import os
 from tqdm import tqdm
 import requests 
 import re
@@ -77,6 +81,47 @@ def load_ratings():
             except Movie.DoesNotExist:
                 print(f"Movie with ID {movie_id} not found.")
 
+
+
+def migrate_users_from_file():
+    with open('./crossDomainRecommenderSystem-master/movielens/u.user', 'r') as file:
+        total_lines = sum(1 for line in file)
+
+    with open('./crossDomainRecommenderSystem-master/movielens/u.user', 'r') as file:
+        reader = csv.reader(file, delimiter='|')
+        for row in tqdm(reader, total = total_lines,  desc = "Load User Profile"):
+            user_id, age, gender, occupation, zip_code = row
+            # user id | age | gender | occupation | zip code
+
+            # Truy vấn user 
+            user, created = User.objects.get_or_create(
+                id = user_id, 
+                defaults={
+                    "username": f"user_{user_id}",
+                    "email": f"user_{user_id}@gmail.com",
+                }
+            )
+            if created: 
+                user.set_password("123456789")
+                user.save()            
+            else:
+                # Cập nhật username và mật khẩu cho user đã tồn tại
+                user.username = f"user_{user_id}"
+                user.set_password("123456789")  # Đặt mật khẩu mặc định mã hóa
+                user.save()  # Lưu lại các thay đổi
+
+            # Cập nhật hoặc tạo mới UserProfile
+            UserProfile.objects.update_or_create(
+                user=user,
+                defaults={
+                    "age": int(age) if age.isdigit() else None,
+                    "gender": gender,
+                    "occupation": occupation,
+                    "zip_code": zip_code
+                }
+            )
+            if created:
+                print(f"Created user and profile for {user.username}")
 
 
 def get_poster_urls():
