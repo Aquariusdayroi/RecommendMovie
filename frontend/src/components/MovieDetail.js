@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Box, Typography, Grid } from "@mui/material";
 import styled from "styled-components";
+import axios from "axios";
 
 const BackgroundContainer = styled.div`
   position: fixed;
@@ -30,7 +31,11 @@ const ContentContainer = styled.div`
 
 const ContentBox = styled(Box)`
   max-width: 1000px;
-  background: linear-gradient(to right, rgba(30, 30, 30, 0.9), rgba(10, 10, 10, 0.8));
+  background: linear-gradient(
+    to right,
+    rgba(30, 30, 30, 0.9),
+    rgba(10, 10, 10, 0.8)
+  );
   border-radius: 15px;
   box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.8);
   color: white;
@@ -72,7 +77,7 @@ const MovieInfo = styled.div`
 const StyledTitle = styled(Typography)`
   font-size: 2.6rem;
   font-weight: 700;
-  color: #ffd700; /* Màu vàng nổi bật */
+  color: #ffd700;
   text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.7);
   margin-bottom: 16px;
   animation: slideIn 0.6s ease-in-out;
@@ -122,9 +127,8 @@ function MovieDetail() {
   useEffect(() => {
     const fetchMovie = async () => {
       try {
-        const response = await fetch(`/api/movies/${id}/`);
-        const data = await response.json();
-        setMovie(data);
+        const response = await axios.get(`/api/movies/${id}/`);
+        setMovie(response.data); // Lấy dữ liệu từ `response.data`
       } catch (error) {
         console.error("Error fetching movie details:", error);
       }
@@ -151,9 +155,8 @@ function MovieDetail() {
             <Grid item xs={12} sm={8}>
               <MovieInfo>
                 <StyledTitle>
-                  {movie.title} ({movie.release_date
-                    ? movie.release_date.slice(0, 4)
-                    : "N/A"})
+                  {movie.title} (
+                  {movie.release_date ? movie.release_date.slice(0, 4) : "N/A"})
                 </StyledTitle>
                 <StyledOverview>
                   {movie.overview || "No overview available."}

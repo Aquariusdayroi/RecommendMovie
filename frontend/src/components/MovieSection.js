@@ -5,22 +5,32 @@ import MovieCard from "./MovieCard";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import LazyLoad from "react-lazyload";
+import axios from "axios";
+import { useNavigate } from "react-router-dom"; // Điều hướng nếu không có quyền truy cập
 
 function MovieSection({ title }) {
   const [movies, setMovies] = useState([]);
   const [page, setPage] = useState(1); // Trang hiện tại
   const [hasMore, setHasMore] = useState(true); // Kiểm tra còn dữ liệu không
+  const navigate = useNavigate(); // Điều hướng khi không có quyền
 
   const fetchMovies = async (page) => {
     try {
-      const response = await fetch(`/api/movies/?page=${page}`);
-      const data = await response.json();
+      const response = await axios.get(`/api/movies/`, {
+        params: { page },
+      });
+      const data = response.data;
       if (data.results) {
         setMovies((prevMovies) => [...prevMovies, ...data.results]);
         setHasMore(data.next !== null);
       }
     } catch (error) {
-      console.error("Error fetching movies:", error);
+      if (error.response && error.response.status === 401) {
+        console.error("Unauthorized access - redirecting to login.");
+        navigate("/login");
+      } else {
+        console.error("Error fetching movies:", error);
+      }
     }
   };
 

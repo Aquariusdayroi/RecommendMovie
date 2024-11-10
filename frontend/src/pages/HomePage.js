@@ -1,9 +1,30 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Box, Typography, TextField, InputAdornment } from "@mui/material";
 import { Search } from "@mui/icons-material";
 import MovieSection from "../components/MovieSection";
+import axios from "axios";
 
 function HomePage() {
+  const [movies, setMovies] = useState([]);
+  const token = localStorage.getItem("token"); // Lấy token từ localStorage
+
+  useEffect(() => {
+    const fetchMovies = async () => {
+      try {
+        const response = await axios.get("/api/movies/", {
+          headers: {
+            Authorization: `Token ${token}`, // Thêm token vào headers
+          },
+        });
+        setMovies(response.data.results); // Lưu trữ danh sách phim trong state
+      } catch (error) {
+        console.error("Error fetching movies:", error);
+      }
+    };
+
+    fetchMovies(); // Gọi hàm lấy phim khi component được render lần đầu
+  }, [token]);
+
   return (
     <Box
       sx={{
@@ -29,10 +50,11 @@ function HomePage() {
           ),
         }}
       />
-      
-      <MovieSection title="On Deck" />
-      <MovieSection title="Recently Added" />
-      <MovieSection title="Watch Later" />
+
+      {/* Truyền dữ liệu phim vào MovieSection */}
+      <MovieSection title="On Deck" movies={movies} />
+      <MovieSection title="Recently Added" movies={movies} />
+      <MovieSection title="Watch Later" movies={movies} />
     </Box>
   );
 }
