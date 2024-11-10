@@ -1,0 +1,9 @@
+Django
+djangorestframework
+djangorestframework-authtoken
+pandas
+numpy
+scikit-learn
+scipy
+tqdm
+requests
