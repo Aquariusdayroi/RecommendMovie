@@ -1,107 +1,92 @@
+import copy
 from random import sample
 from math import sqrt
 from collections import defaultdict
-from recomendation.models import Movie, Rating, User 
+from recomendation.models import Movie, Rating, User
 
 # Hàm tính độ tương đồng khoảng cách Euclidean giữa hai người dùng
 def sim_distance(prefs, person1, person2):
-    # Tìm các bộ phim mà cả hai người dùng đều đã đánh giá
+    # Lọc ra các bộ phim mà cả hai người dùng đều đã đánh giá
     si = {item for item in prefs[person1] if item in prefs[person2]}
-    if len(si) == 0: 
-        return 0  # Nếu không có phim chung, độ tương đồng bằng 0
-    
-    # Tính tổng bình phương của sự khác biệt về đánh giá giữa hai người dùng
-    sum_of_squares = sum([pow(prefs[person1][item] - prefs[person2][item], 2) for item in si])
-    return 1 / (1 + sum_of_squares)  # Trả về độ tương đồng theo khoảng cách Euclidean
+    if len(si) == 0:
+        return 0
+
+    # Tính tổng bình phương sự khác biệt giữa các đánh giá
+    sum_of_squares = sum((prefs[person1][item] - prefs[person2][item]) ** 2 for item in si)
+    return 1 / (1 + sum_of_squares)  # Đảo ngược để giá trị tương đồng càng cao càng gần
 
 # Hàm tính độ tương đồng Pearson giữa hai người dùng
 def sim_pearson(prefs, p1, p2):
-    # Tìm các bộ phim mà cả hai người dùng đều đã đánh giá
+    # Lấy các bộ phim mà cả hai người dùng đã đánh giá
     si = {item for item in prefs[p1] if item in prefs[p2]}
-    if len(si) == 0: 
-        return 0  # Nếu không có phim chung, độ tương đồng bằng 0
-    
-    # Tính toán các thông số cần thiết cho công thức Pearson
+    if len(si) == 0:
+        return 0
+
+    # Tổng hợp các đánh giá của cả hai người dùng trên các phim đã xem chung
     n = len(si)
-    sum1 = sum([prefs[p1][it] for it in si])
-    sum2 = sum([prefs[p2][it] for it in si])
-    sum1Sq = sum([pow(prefs[p1][it], 2) for it in si])
-    sum2Sq = sum([pow(prefs[p2][it], 2) for it in si])
-    pSum = sum([prefs[p1][it] * prefs[p2][it] for it in si])
+    sum1, sum2 = sum(prefs[p1][it] for it in si), sum(prefs[p2][it] for it in si)
+    sum1Sq, sum2Sq = sum(prefs[p1][it] ** 2 for it in si), sum(prefs[p2][it] ** 2 for it in si)
+    pSum = sum(prefs[p1][it] * prefs[p2][it] for it in si)
 
-    # Tính tử số và mẫu số của công thức Pearson
+    # Tính toán hệ số Pearson
     num = pSum - (sum1 * sum2 / n)
-    den = sqrt((sum1Sq - pow(sum1, 2) / n) * (sum2Sq - pow(sum2, 2) / n))
-    if den == 0: 
-        return 0  # Tránh chia cho 0
-
-    return num / den  # Trả về hệ số tương đồng Pearson
+    den = sqrt((sum1Sq - (sum1 ** 2) / n) * (sum2Sq - (sum2 ** 2) / n))
+    return 0 if den == 0 else num / den
 
 # Lấy đánh giá của tất cả người dùng từ database và lưu vào từ điển prefs
 def get_user_ratings():
-    prefs = {}
-    # Lặp qua tất cả các đánh giá trong database
+    prefs = defaultdict(dict)
+    # Lặp qua tất cả các đánh giá từ database và thêm vào từ điển
     for rating in Rating.objects.all():
-        user_id = rating.user.id
-        movie_id = rating.movie.id
-        prefs.setdefault(user_id, {})
-        prefs[user_id][movie_id] = rating.rating  # Thêm đánh giá vào từ điển
+        prefs[rating.user.id][rating.movie.id] = rating.rating
     return prefs  # Trả về từ điển đánh giá của người dùng
 
-
 # Hàm chia dữ liệu thành D1 và D4 cho cross-domain recommendation
-def split_data_for_cross_domain(target_user_id, target_ratio=0.5):
-    # Lấy toàn bộ đánh giá và tạo tập người dùng duy nhất
-    all_ratings = Rating.objects.all().select_related('user', 'movie')
-    all_users = set(rating.user_id for rating in all_ratings)
+def split_data_for_cross_domain(target_ratio=0.1):
+    """
+    Tách dữ liệu cho cross-domain recommendation với D1 và D4.
+    D1 sẽ chứa target_ratio của toàn bộ dữ liệu, còn D4 là phần còn lại.
+    """
+    # Lấy toàn bộ đánh giá
+    all_ratings = list(Rating.objects.all())
+    target_size = int(len(all_ratings) * target_ratio)
     
-    # Đảm bảo `target_user_id` nằm trong D1 và tách người dùng theo `target_ratio`
-    target_users = {target_user_id}
-    remaining_users = list(all_users - {target_user_id})
-    target_size = int(len(all_users) * target_ratio)
-    
-    # Chọn thêm người dùng ngẫu nhiên để thêm vào D1
-    target_users.update(sample(remaining_users, target_size - 1))
-    source_users = all_users - target_users
-    
-    # Khởi tạo D1 và D4 dưới dạng từ điển
+    # Lấy một phần ngẫu nhiên từ all_ratings cho D1
+    D1_ratings = set(sample(all_ratings, target_size))
     D1, D4 = defaultdict(dict), defaultdict(dict)
 
-    # Phân loại đánh giá vào D1 hoặc D4 dựa trên người dùng
+    # Phân loại các đánh giá vào D1 và D4
     for rating in all_ratings:
-        user_id, movie_id, score = rating.user_id, rating.movie_id, rating.rating
-        if user_id in target_users:
-            D1[user_id][movie_id] = score
-        elif user_id in source_users:
-            D4[user_id][movie_id] = score
+        user_id, movie_id, score = rating.user.id, rating.movie.id, rating.rating
+        target_dict = D1 if rating in D1_ratings else D4
+        target_dict[user_id][movie_id] = score  # Thêm đánh giá vào D1 hoặc D4
 
     return D1, D4
 
-
-# Hàm chính để tạo ra khuyến nghị cho người dùng
+# Hàm tạo ra khuyến nghị cho người dùng dựa trên các đánh giá trong domain1 và domain2
 def getRecommendations(domain1, domain2, person, similarity=sim_pearson):
-    totals = {}
-    simSums = {}
+    """
+    Tạo ra khuyến nghị cho người dùng `person` dựa trên dữ liệu domain2.
+    """
+    totals = defaultdict(float)  # Tổng số đánh giá được tính toán cho từng phim
+    simSums = defaultdict(float)  # Tổng số độ tương đồng cho từng phim
 
-    # Duyệt qua tất cả người dùng khác trong domain2
+    # Tính điểm khuyến nghị cho từng phim dựa trên độ tương đồng
     for other in domain2:
-        if other == person: 
-            continue  # Không so sánh với chính người dùng đó
+        if other == person:
+            continue
         
-        sim = similarity(domain2, person, other)  # Tính độ tương đồng với người dùng khác
-        if sim <= 0: 
-            continue  # Bỏ qua nếu độ tương đồng nhỏ hơn hoặc bằng 0
+        sim = similarity(domain2, person, other)
+        if sim <= 0:
+            continue
 
-        # Duyệt qua các bộ phim mà người dùng khác đã đánh giá
+        # Tính điểm đánh giá dự đoán cho các phim mà người dùng chưa xem
         for item in domain1[other]:
-            # Chỉ xét các phim mà người dùng chưa đánh giá
-            if item not in domain1[person] or domain1[person][item] == 0:
-                totals.setdefault(item, 0)
-                totals[item] += domain1[other][item] * sim  # Cộng điểm tương đồng x đánh giá
-                simSums.setdefault(item, 0)
-                simSums[item] += sim  # Tổng hợp điểm tương đồng
+            if item not in domain1.get(person, {}):
+                totals[item] += domain1[other][item] * sim
+                simSums[item] += sim
 
-    # Tạo danh sách phim và điểm đánh giá dự đoán
-    rankings = [(total / simSums[item], item) for item, total in totals.items()]
-    rankings.sort(reverse=True)  # Sắp xếp theo điểm từ cao đến thấp
-    return rankings  # Trả về danh sách khuyến nghị
+    # Tạo danh sách khuyến nghị dựa trên điểm đánh giá dự đoán
+    rankings = [(totals[item] / simSums[item], item) for item in totals if simSums[item] > 0]
+    rankings.sort(reverse=True)  # Sắp xếp theo điểm từ cao xuống thấp
+    return rankings
