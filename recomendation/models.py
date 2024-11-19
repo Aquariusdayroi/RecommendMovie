@@ -9,7 +9,6 @@ class Movie(models.Model):
     genre = models.CharField(max_length=100, blank=True, null=True)
     poster_url = models.URLField(max_length=500, blank=True, null=True)
     overview = models.TextField(blank=True, null=True)
-    average_rating = models.FloatField(blank=True, null=True)  # Đổi tên thành average_rating
     director = models.CharField(max_length=200, blank=True, null=True)
     cast = models.TextField(blank=True, null=True)
     runtime = models.IntegerField(blank=True, null=True)
@@ -17,16 +16,30 @@ class Movie(models.Model):
     def __str__(self):
         return self.title
 
+
 class Rating(models.Model):
-    movie = models.ForeignKey(Movie, on_delete=models.CASCADE)
+    movie = models.ForeignKey(Movie, on_delete=models.CASCADE, related_name="ratings")
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    rating = models.IntegerField()
-    timestamp = models.DateTimeField(default=timezone.now) # Đặt mặc định là thời gian hiện tại
+    rating = models.IntegerField()  # Giá trị rating (1-5)
+    timestamp = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        unique_together = ('movie', 'user')
 
     def __str__(self):
         return f"{self.user.username} - {self.movie.title} - {self.rating}"
 
-    
+
+
+class Comment(models.Model):
+    movie = models.ForeignKey(Movie, on_delete=models.CASCADE, related_name="comments")
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    content = models.TextField()  # Nội dung bình luận
+    timestamp = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.movie.title}"
+
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     age = models.IntegerField(null=True, blank=True)

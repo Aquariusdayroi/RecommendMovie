@@ -1,29 +1,26 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Box, Typography, TextField, InputAdornment } from "@mui/material";
 import { Search } from "@mui/icons-material";
 import MovieSection from "../components/MovieSection";
 import axios from "axios";
 
 function HomePage() {
-  const [movies, setMovies] = useState([]);
-  const token = localStorage.getItem("token"); // Lấy token từ localStorage
+  const token = localStorage.getItem("token");
 
-  useEffect(() => {
-    const fetchMovies = async () => {
-      try {
-        const response = await axios.get("/api/movies/", {
-          headers: {
-            Authorization: `Token ${token}`, // Thêm token vào headers
-          },
-        });
-        setMovies(response.data.results); // Lưu trữ danh sách phim trong state
-      } catch (error) {
-        console.error("Error fetching movies:", error);
-      }
-    };
-
-    fetchMovies(); // Gọi hàm lấy phim khi component được render lần đầu
-  }, [token]);
+  // Hàm gọi API
+  const fetchMovies = async (page) => {
+    try {
+      const response = await axios.get(`/api/movies/?page=${page}`, {
+        headers: {
+          Authorization: `Token ${token}`,
+        },
+      });
+      return response.data.results; // Trả về danh sách phim
+    } catch (error) {
+      console.error("Error fetching movies:", error);
+      return [];
+    }
+  };
 
   return (
     <Box
@@ -34,9 +31,12 @@ function HomePage() {
         minHeight: "100vh",
       }}
     >
-      <Typography variant="h6" gutterBottom sx={{ color: "white", mb: 2 }}>
+      {/* Tiêu đề */}
+      <Typography variant="h6" gutterBottom sx={{ color: "white", mb: 3 }}>
         Movie Recommendation
       </Typography>
+
+      {/* Thanh tìm kiếm */}
       <TextField
         placeholder="Search movies..."
         variant="outlined"
@@ -51,10 +51,8 @@ function HomePage() {
         }}
       />
 
-      {/* Truyền dữ liệu phim vào MovieSection */}
-      <MovieSection title="On Deck" movies={movies} />
-      <MovieSection title="Recently Added" movies={movies} />
-      <MovieSection title="Watch Later" movies={movies} />
+      {/* Movie Sections */}
+      <MovieSection title="On Deck" fetchMovies={fetchMovies} />
     </Box>
   );
 }

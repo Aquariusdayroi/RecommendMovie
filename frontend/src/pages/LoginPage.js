@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import styled from "styled-components";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom"; // Thêm Link từ react-router-dom
 
 const Background = styled.div`
   background-image: url("https://example.com/movie-background.jpg"); // Đường dẫn ảnh nền phim
@@ -93,6 +93,22 @@ const ErrorMessage = styled.p`
   font-size: 0.9rem;
 `;
 
+const RegisterLink = styled.p`
+  margin-top: 20px;
+  font-size: 0.9rem;
+  color: #ffd700;
+
+  a {
+    color: #007bff;
+    font-weight: bold;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+`;
+
 function Login({ onLoginSuccess }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -133,6 +149,10 @@ function Login({ onLoginSuccess }) {
           <Button type="submit">LOGIN</Button>
         </form>
         {message && <ErrorMessage>{message}</ErrorMessage>}
+        <RegisterLink>
+          Chưa có tài khoản?{" "}
+          <Link to="/register">Đăng ký ngay</Link>
+        </RegisterLink>
       </LoginBox>
     </LoginContainer>
   );

@@ -1,12 +1,102 @@
 import React, { useState } from "react";
+import styled from "styled-components";
 import axios from "axios";
-import { Box, TextField, Button, Typography, Paper } from "@mui/material";
 import { useNavigate } from "react-router-dom";
+
+const Background = styled.div`
+  background-image: url("https://example.com/movie-background.jpg"); // Đường dẫn ảnh nền
+  background-size: cover;
+  background-position: center;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  filter: blur(8px);
+  opacity: 0.8;
+`;
+
+const RegisterContainer = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  color: white;
+`;
+
+const RegisterBox = styled.div`
+  background-color: rgba(0, 0, 0, 0.85);
+  padding: 40px;
+  width: 300px;
+  border-radius: 10px;
+  box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.5);
+  text-align: center;
+  animation: fadeIn 1s ease-in-out;
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+`;
+
+const Title = styled.h2`
+  font-size: 2rem;
+  margin-bottom: 20px;
+  color: #ffd700;
+`;
+
+const Input = styled.input`
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+  border: none;
+  border-radius: 5px;
+  font-size: 1rem;
+  color: #333;
+  outline: none;
+  background: #e0e0e0;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+
+  &:focus {
+    outline: 2px solid #ffd700;
+  }
+`;
+
+const Button = styled.button`
+  width: 100%;
+  padding: 10px;
+  background-color: #007bff;
+  color: white;
+  font-size: 1rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 5px;
+  margin-top: 10px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+
+  &:hover {
+    background-color: #0056b3;
+  }
+`;
+
+const ErrorMessage = styled.p`
+  color: #ff4d4f;
+  margin-top: 15px;
+  font-size: 0.9rem;
+`;
 
 function Register() {
   const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
 
@@ -15,81 +105,45 @@ function Register() {
     try {
       const response = await axios.post("/api/register/", {
         username,
-        password,
         email,
+        password,
       });
-      setMessage("Registration successful!");
-      setTimeout(() => navigate("/login"), 1500); // Điều hướng sau khi đăng ký
+      setMessage("Đăng ký thành công! Chuyển hướng sang đăng nhập...");
+      setTimeout(() => navigate("/login"), 2000); // Chuyển sang trang login sau 2 giây
     } catch (error) {
-      setMessage(error.response?.data?.error || "An error occurred.");
+      setMessage(error.response?.data?.error || "Đã xảy ra lỗi. Vui lòng thử lại.");
     }
   };
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "100vh",
-        backgroundColor: "#f0f2f5",
-      }}
-    >
-      <Paper
-        elevation={3}
-        sx={{
-          padding: 4,
-          maxWidth: 400,
-          width: "100%",
-          textAlign: "center",
-        }}
-      >
-        <Typography variant="h5" gutterBottom>
-          Register
-        </Typography>
+    <RegisterContainer>
+      <Background />
+      <RegisterBox>
+        <Title>Register</Title>
         <form onSubmit={handleRegister}>
-          <TextField
-            fullWidth
-            label="Username"
-            variant="outlined"
+          <Input
+            type="text"
+            placeholder="Username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            margin="normal"
           />
-          <TextField
-            fullWidth
-            label="Email"
-            variant="outlined"
+          <Input
+            type="email"
+            placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            margin="normal"
           />
-          <TextField
-            fullWidth
+          <Input
             type="password"
-            label="Password"
-            variant="outlined"
+            placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            margin="normal"
           />
-          <Button
-            type="submit"
-            variant="contained"
-            color="primary"
-            fullWidth
-            sx={{ mt: 2 }}
-          >
-            Register
-          </Button>
-          {message && (
-            <Typography color="error" sx={{ mt: 2 }}>
-              {message}
-            </Typography>
-          )}
+          <Button type="submit">Đăng Ký</Button>
         </form>
-      </Paper>
-    </Box>
+        {message && <ErrorMessage>{message}</ErrorMessage>}
+      </RegisterBox>
+    </RegisterContainer>
   );
 }
 
