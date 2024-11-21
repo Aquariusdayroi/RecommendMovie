@@ -46,7 +46,8 @@ class UserProfile(models.Model):
     gender = models.CharField(max_length=10, null=True, blank=True)
     occupation = models.CharField(max_length=100, null=True, blank=True)
     zip_code = models.CharField(max_length=10, null=True, blank=True)
-
+    avatar = models.ImageField(upload_to='avatars/', default='default-avatar.png')  # Avatar
+    
     def __str__(self):
         return f"{self.user.username} - Profile"
 

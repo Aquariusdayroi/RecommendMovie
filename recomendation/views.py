@@ -1,23 +1,26 @@
 
 from django.contrib.auth.models import User
+
 from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
+from django.contrib.auth import logout
 
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.decorators import api_view, authentication_classes, permission_classes, parser_classes
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Movie, Rating, Comment
+from .models import Movie, Rating, Comment, UserProfile
 from . import models
-from django.db.models import Avg
-from django.db.models import Avg  
+from django.db.models import Avg, Q
 from .recomender.recommendation import recommend_movies_for_user
 from .serializers import MovieSerializer, RatingSerializer, CommentSerializer
 from rest_framework import viewsets
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
-from rest_framework.parsers import JSONParser
+from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
+
 
 # Thiết lập phân trang
 class MoviePagination(PageNumberPagination):
@@ -54,25 +57,25 @@ def movie_detail(request, movie_id):
         serializer = MovieSerializer(movie)
 
         # Lấy rating của user hiện tại
-        try:
+        user_rating = None
+        if Rating.objects.filter(user=request.user, movie=movie).exists():
             user_rating = Rating.objects.get(user=request.user, movie=movie).rating
-        except Rating.DoesNotExist:
-            user_rating = None
 
         # Tính trung bình rating
         average_rating = Rating.objects.filter(movie=movie).aggregate(average=Avg('rating'))['average']
-        if average_rating is None:
-            average_rating = 0.0
-
+        average_rating = round(average_rating, 2) if average_rating else 1.2
+        
         data = serializer.data
         data.update({
             "user_rating": user_rating,
-            "average_rating": round(average_rating, 2)
+            "average_rating": average_rating
         })
 
         return Response(data)
     except Movie.DoesNotExist:
         return Response({"error": "Movie not found"}, status=404)
+
+
 
 
 # Đăng ký người dùng
@@ -122,6 +125,9 @@ def recommend_movies(request):
     user = request.user
     try:
         recommended_movies = recommend_movies_for_user(user.id)
+        # page = request.GET.get('page', 1)
+        # paginator = Paginator(recommended_movies, 20)
+        # paged_movies = paginator.get_page(page)
         serializer = MovieSerializer(recommended_movies, many=True)
         return Response(serializer.data)
     except Exception as e:
@@ -130,32 +136,37 @@ def recommend_movies(request):
 
 # Lấy thông tin và cập nhật thông tin người dùng
 @api_view(['GET', 'PUT'])
+@permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
 def user_profile(request):
     user = request.user
+    profile, created = UserProfile.objects.get_or_create(user=user)
+
     if request.method == 'GET':
-        profile = user.userprofile
         data = {
             "username": user.username,
             "email": user.email,
-            "occupation": profile.occupation,
-            "gender": profile.gender,
             "age": profile.age,
+            "gender": profile.gender,
+            "occupation": profile.occupation,
             "zip_code": profile.zip_code,
+            "avatar": profile.avatar.url if profile.avatar else None,
         }
         return Response(data)
 
-    if request.method == 'PUT':
-        data = JSONParser().parse(request)
-        user.username = data.get("username", user.username)
-        user.email = data.get("email", user.email)
-        profile = user.userprofile
-        profile.occupation = data.get("occupation", profile.occupation)
-        profile.gender = data.get("gender", profile.gender)
-        profile.age = data.get("age", profile.age)
-        profile.zip_code = data.get("zip_code", profile.zip_code)
+    elif request.method == 'PUT':
+        user.username = request.data.get("username", user.username)
+        user.email = request.data.get("email", user.email)
+        profile.age = request.data.get("age", profile.age)
+        profile.gender = request.data.get("gender", profile.gender)
+        profile.occupation = request.data.get("occupation", profile.occupation)
+        profile.zip_code = request.data.get("zip_code", profile.zip_code)
+        if request.FILES.get("avatar"):
+            profile.avatar = request.FILES["avatar"]
 
         user.save()
         profile.save()
+
         return Response({"message": "Profile updated successfully!"})
 
 
@@ -175,33 +186,37 @@ def watched_movies(request):
     ]
     return Response(data)
 
-# API cho rating và comment
+# API cho rating
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def rate_movie(request, movie_id):
-    data = request.data
-    user = request.user
     try:
         movie = Movie.objects.get(id=movie_id)
-        # Cập nhật hoặc tạo rating
-        rating, created = Rating.objects.update_or_create(
-            user=user, 
+        rating_value = request.data.get('rating')
+        if not rating_value:
+            return Response({"error": "Rating value is required."}, status=400)
+
+        # Tạo hoặc cập nhật rating
+        Rating.objects.update_or_create(
+            user=request.user, 
             movie=movie,
-            defaults={'rating': data.get('rating')}
+            defaults={'rating': rating_value}
         )
+
         # Tính lại rating trung bình
         average_rating = Rating.objects.filter(movie=movie).aggregate(average=Avg('rating'))['average']
+
         return Response({
             "message": "Rating submitted successfully!",
             "average_rating": round(average_rating, 2)
-        })
+        }, status=200)
     except Movie.DoesNotExist:
         return Response({"error": "Movie not found"}, status=404)
     except Exception as e:
         return Response({"error": str(e)}, status=500)
 
 
-
+# API cho comment
 @api_view(['POST', 'GET'])
 @permission_classes([IsAuthenticated])
 def comment_movie(request, movie_id):
@@ -216,14 +231,95 @@ def comment_movie(request, movie_id):
         if not content:
             return Response({"error": "Comment content cannot be empty."}, status=400)
 
+        # Lưu comment
         comment = Comment.objects.create(
             user=request.user,
             movie=movie,
             content=content
         )
-        return Response({"message": "Comment submitted successfully!"}, status=201)
+        # Trả về comment đã lưu
+        serializer = CommentSerializer(comment)
+        return Response(serializer.data, status=201)
 
     elif request.method == 'GET':
         comments = Comment.objects.filter(movie=movie)
         serializer = CommentSerializer(comments, many=True)
         return Response(serializer.data, status=200)
+
+#Api đăng xuất
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def logout_user(request):
+    try:
+        # Lấy thông tin user hiện tại
+        user_id = request.user.id
+        
+        # Xóa cache liên quan đến user
+        cache_key = f"user_data_{user_id}"
+        cache.delete(cache_key)
+        
+        # Đăng xuất người dùng
+        logout(request)
+        
+        return Response({"message": "Logged out successfully"}, status=200)
+    except Exception as e:
+        return Response({"error": f"Logout failed: {str(e)}"}, status=500)
+
+
+
+#Api search
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def search_movies(request):
+    query = request.GET.get('query', '').strip()  # Lấy từ khóa tìm kiếm
+    if not query:
+        return Response({"error": "Query parameter is required."}, status=400)
+
+    # Tìm kiếm với nhiều điều kiện
+    movies = Movie.objects.filter(
+        Q(title__icontains=query) | Q(overview__icontains=query)
+    )
+
+    serializer = MovieSerializer(movies, many=True)
+    return Response({"results": serializer.data})
+
+
+
+# @api_view(['GET'])
+
+# def search_and_recommend(request):
+#     query = request.GET.get('q', '')
+#     user_id = request.user.id if request.user.is_authenticated else None
+
+#     if not query:
+#         return Response({"error": "Search query is required."}, status=400)
+
+#     # Tìm kiếm phim
+#     search_results = Movie.objects.filter(
+#         Q(title__icontains=query) |
+#         Q(genre__icontains=query) |
+#         Q(director__icontains=query) |
+#         Q(cast__icontains=query)
+#     )
+
+#     # Khuyến nghị thêm dựa trên lịch sử người dùng
+#     if user_id:
+#         user_rated_movies = Rating.objects.filter(user_id=user_id).values_list('movie_id', flat=True)
+#         recommendations = Movie.objects.filter(
+#             Q(genre__in=[movie.genre for movie in search_results]) |
+#             Q(cast__icontains=query)
+#         ).exclude(id__in=user_rated_movies)
+#     else:
+#         recommendations = []
+
+#     # Serialize dữ liệu
+#     search_serializer = MovieSerializer(search_results, many=True)
+#     recommend_serializer = MovieSerializer(recommendations, many=True)
+
+#     return Response({
+#         "search_results": search_serializer.data,
+#         "recommendations": recommend_serializer.data
+#     }, status=200)

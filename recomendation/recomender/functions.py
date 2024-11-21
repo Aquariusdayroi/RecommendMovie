@@ -3,6 +3,7 @@ from random import sample
 from math import sqrt
 from collections import defaultdict
 from recomendation.models import Movie, Rating, User
+from concurrent.futures import ThreadPoolExecutor
 
 # Hàm tính độ tương đồng khoảng cách Euclidean giữa hai người dùng
 def sim_distance(prefs, person1, person2):
@@ -42,24 +43,42 @@ def get_user_ratings():
     return prefs  # Trả về từ điển đánh giá của người dùng
 
 # Hàm chia dữ liệu thành D1 và D4 cho cross-domain recommendation
-def split_data_for_cross_domain(target_ratio=0.1):
-    """
-    Tách dữ liệu cho cross-domain recommendation với D1 và D4.
-    D1 sẽ chứa target_ratio của toàn bộ dữ liệu, còn D4 là phần còn lại.
-    """
-    # Lấy toàn bộ đánh giá
-    all_ratings = list(Rating.objects.all())
-    target_size = int(len(all_ratings) * target_ratio)
+# def split_data_for_cross_domain(target_ratio=0.1):
+#     """
+#     Tách dữ liệu cho cross-domain recommendation với D1 và D4.
+#     D1 sẽ chứa target_ratio của toàn bộ dữ liệu, còn D4 là phần còn lại.
+#     """
+#     # Lấy toàn bộ đánh giá
+#     all_ratings = list(Rating.objects.all())
+#     target_size = int(len(all_ratings) * target_ratio)
     
-    # Lấy một phần ngẫu nhiên từ all_ratings cho D1
+#     # Lấy một phần ngẫu nhiên từ all_ratings cho D1
+#     D1_ratings = set(sample(all_ratings, target_size))
+#     D1, D4 = defaultdict(dict), defaultdict(dict)
+
+#     # Phân loại các đánh giá vào D1 và D4
+#     for rating in all_ratings:
+#         user_id, movie_id, score = rating.user.id, rating.movie.id, rating.rating
+#         target_dict = D1 if rating in D1_ratings else D4
+#         target_dict[user_id][movie_id] = score  # Thêm đánh giá vào D1 hoặc D4
+
+#     return D1, D4
+
+def split_data_for_cross_domain(target_ratio=0.3):
+    all_ratings = list(Rating.objects.values_list('user__id', 'movie__id', 'rating'))
+    target_size = int(len(all_ratings) * target_ratio)
+
+    # Chọn ngẫu nhiên các đánh giá
     D1_ratings = set(sample(all_ratings, target_size))
     D1, D4 = defaultdict(dict), defaultdict(dict)
 
-    # Phân loại các đánh giá vào D1 và D4
-    for rating in all_ratings:
-        user_id, movie_id, score = rating.user.id, rating.movie.id, rating.rating
+    def process_rating(rating):
+        user_id, movie_id, score = rating
         target_dict = D1 if rating in D1_ratings else D4
-        target_dict[user_id][movie_id] = score  # Thêm đánh giá vào D1 hoặc D4
+        target_dict[user_id][movie_id] = score
+
+    with ThreadPoolExecutor() as executor:
+        executor.map(process_rating, all_ratings)
 
     return D1, D4
 

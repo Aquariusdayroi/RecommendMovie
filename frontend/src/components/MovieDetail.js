@@ -3,7 +3,9 @@ import { useParams } from "react-router-dom";
 import { Box, Typography, Grid, Button, TextField, Rating } from "@mui/material";
 import styled from "styled-components";
 import axios from "axios";
+import Comments from "./Comment";
 
+// Styled components
 const BackgroundContainer = styled.div`
   position: fixed;
   top: 0;
@@ -52,13 +54,28 @@ const CommentsContainer = styled(Box)`
   border-radius: 8px;
 `;
 
-const CommentBox = styled(Box)`
-  margin-top: 8px;
-  padding: 8px;
-  background: rgba(30, 30, 30, 0.9);
-  border-radius: 8px;
+const CommentListContainer = styled(Box)`
+  max-height: 300px; /* Giới hạn chiều cao */
+  overflow-y: auto; /* Thêm thanh cuộn */
+  margin-bottom: 16px; /* Tạo khoảng cách với phần nhập comment */
+  scrollbar-width: thin; /* Độ dày thanh cuộn (Firefox) */
+  scrollbar-color: lightgray rgba(30, 30, 30, 0.8); /* Màu thanh cuộn (Firefox) */
+
+  &::-webkit-scrollbar {
+    width: 8px; /* Độ dày thanh cuộn (Webkit) */
+  }
+  &::-webkit-scrollbar-track {
+    background: rgba(30, 30, 30, 0.8);
+    border-radius: 10px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: lightgray;
+    border-radius: 10px;
+    border: 2px solid rgba(30, 30, 30, 0.8);
+  }
 `;
 
+// Component
 function MovieDetail() {
   const { id } = useParams();
   const [movie, setMovie] = useState(null);
@@ -67,21 +84,23 @@ function MovieDetail() {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [showComments, setShowComments] = useState(false);
+  const [loading, setLoading] = useState(true);
   const token = localStorage.getItem("token");
 
-  // Fetch movie details
+  // Fetch movie details and comments
   useEffect(() => {
     const fetchMovie = async () => {
       try {
-        const response = await axios.get(`/api/movies/${id}/`, {
+        const response = await axios.get(`/api/movies/${id}/detail`, {
           headers: { Authorization: `Token ${token}` },
         });
-        console.log("Movie data:", response.data);
         setMovie(response.data);
-        setRating(response.data.user_rating || 0); // Set user rating
-        setAverageRating(response.data.average_rating || 0); // Set average rating
+        setRating(response.data.user_rating || 0);
+        setAverageRating(response.data.average_rating || 0);
       } catch (error) {
         console.error("Error fetching movie details:", error.response?.data || error.message);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -90,50 +109,56 @@ function MovieDetail() {
         const response = await axios.get(`/api/movies/${id}/comments/`, {
           headers: { Authorization: `Token ${token}` },
         });
-        console.log("Comments data:", response.data);
-        setComments(response.data);
+        console.log("Comments Response:", response.data);
+    
+        // Sắp xếp comments theo timestamp giảm dần
+        const sortedComments = response.data.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        setComments(sortedComments);
       } catch (error) {
         console.error("Error fetching comments:", error.response?.data || error.message);
       }
     };
+    
 
     fetchMovie();
     fetchComments();
   }, [id, token]);
 
-  // Handle rating change
   const handleRatingChange = async (value) => {
     try {
-      setRating(value); // Optimistically set rating
       const response = await axios.post(
         `/api/movies/${id}/rate/`,
         { rating: value },
         { headers: { Authorization: `Token ${token}` } }
       );
-      console.log("Rating response:", response.data);
-      setAverageRating(response.data.average_rating); // Update average rating
+      setRating(value);
+      setAverageRating(response.data.average_rating || 0);
     } catch (error) {
       console.error("Error rating movie:", error.response?.data || error.message);
     }
   };
 
-  // Handle adding comment
   const handleAddComment = async () => {
     if (!newComment.trim()) return;
+  
     try {
       const response = await axios.post(
         `/api/movies/${id}/comments/`,
         { content: newComment },
         { headers: { Authorization: `Token ${token}` } }
       );
-      setComments([...comments, response.data]); // Add new comment
-      setNewComment(""); // Reset comment field
+  
+      // Thêm comment mới vào đầu danh sách
+      setComments((prevComments) => [response.data, ...prevComments]);
+      setNewComment(""); // Reset input field
     } catch (error) {
       console.error("Error adding comment:", error.response?.data || error.message);
     }
   };
+  
 
-  if (!movie) return <p>Loading...</p>;
+  if (loading) return <p>Loading...</p>;
+  if (!movie) return <p>Movie not found!</p>;
 
   return (
     <>
@@ -162,7 +187,6 @@ function MovieDetail() {
                   <strong>Cast:</strong> {movie.cast || "Unknown"}
                 </Typography>
 
-                {/* Rating and Comments Section */}
                 <Box sx={{ mt: 3, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <Box sx={{ display: "flex", alignItems: "center" }}>
                     <Typography variant="body1" color="#ffd700" sx={{ mr: 1 }}>
@@ -182,17 +206,11 @@ function MovieDetail() {
                   </Button>
                 </Box>
 
-                {/* Comments Section */}
                 {showComments && (
                   <CommentsContainer>
-                    <Typography variant="h6" color="#ffd700">
-                      Comments:
-                    </Typography>
-                    {comments.map((comment, index) => (
-                      <CommentBox key={index}>
-                        <Typography variant="body2">{comment.content}</Typography>
-                      </CommentBox>
-                    ))}
+                    <CommentListContainer>
+                      <Comments comments={comments} />
+                    </CommentListContainer>
                     <TextField
                       fullWidth
                       multiline

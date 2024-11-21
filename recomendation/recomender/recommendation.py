@@ -10,7 +10,7 @@ def recommend_movies_for_user(user_id):
         cached_recommendations = cache.get(cache_key, [])
 
         if len(cached_recommendations) < 20:  # Nếu cache không đủ 20 phim, tạo lại khuyến nghị
-            D1, D4 = split_data_for_cross_domain(target_ratio=0.1)
+            D1, D4 = split_data_for_cross_domain(target_ratio=0.3)
             if user_id not in D1:
                 raise ValueError(f"User {user_id} không có trong D1. Hãy kiểm tra dữ liệu.")
 

@@ -22,7 +22,15 @@ class RatingSerializer(serializers.ModelSerializer):
         fields = ['id', 'movie', 'user_id', 'rating', 'timestamp']
 
 class CommentSerializer(serializers.ModelSerializer):
-    user = serializers.StringRelatedField()  # Hiển thị username thay vì id
+    user = serializers.StringRelatedField()  # Tên người dùng
+    avatar = serializers.SerializerMethodField()  # Lấy avatar của user
+
     class Meta:
         model = Comment
-        fields = ['id', 'movie', 'user', 'content', 'timestamp']
+        fields = ['id', 'user', 'avatar', 'content', 'timestamp']
+
+    def get_avatar(self, obj):
+        # Giả sử UserProfile chứa avatar
+        if hasattr(obj.user, 'userprofile') and obj.user.userprofile.avatar:
+            return obj.user.userprofile.avatar.url
+        return "https://example.com/default-avatar.png"  # Avatar mặc định

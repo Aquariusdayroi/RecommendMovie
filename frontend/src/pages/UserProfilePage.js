@@ -1,29 +1,30 @@
 import React, { useEffect, useState } from "react";
 import {
-    Box,
-    Typography,
-    Avatar,
-    Grid,
-    Paper,
-    Button,
-    Card,
-    CardMedia,
-    CardContent,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    TextField,
-    Select,
-    MenuItem,
-  } from "@mui/material";
-  
+  Box,
+  Typography,
+  Avatar,
+  Grid,
+  Paper,
+  Button,
+  Card,
+  CardMedia,
+  CardContent,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Select,
+  MenuItem,
+} from "@mui/material";
+
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 function UserProfilePage() {
   const [user, setUser] = useState({});
   const [editUser, setEditUser] = useState({});
+  const [avatarPreview, setAvatarPreview] = useState(null);
   const [watchedMovies, setWatchedMovies] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
   const token = localStorage.getItem("token");
@@ -39,6 +40,7 @@ function UserProfilePage() {
         });
         setUser(userResponse.data);
         setEditUser(userResponse.data);
+        setAvatarPreview(userResponse.data.avatar);
 
         const moviesResponse = await axios.get("/api/user/movies/watched/", {
           headers: {
@@ -62,23 +64,44 @@ function UserProfilePage() {
     setIsEditing(false);
   };
 
+  const handleInputChange = (field, value) => {
+    setEditUser({ ...editUser, [field]: value });
+  };
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setEditUser({ ...editUser, avatar: file });
+      setAvatarPreview(URL.createObjectURL(file));
+    }
+  };
+  
+
   const handleSaveChanges = async () => {
+    const formData = new FormData();
+    formData.append("username", editUser.username);
+    formData.append("email", editUser.email);
+    formData.append("occupation", editUser.occupation);
+    formData.append("gender", editUser.gender);
+    if (editUser.avatar instanceof File) {
+      formData.append("avatar", editUser.avatar);
+    }
+  
     try {
-      await axios.put("/api/user/profile/", editUser, {
+      const response = await axios.put("/api/user/profile/", formData, {
         headers: {
           Authorization: `Token ${token}`,
+          "Content-Type": "multipart/form-data",
         },
       });
-      setUser(editUser);
+      setUser(response.data);
       setIsEditing(false);
+      alert("Profile updated successfully!");
     } catch (error) {
       console.error("Error updating profile:", error);
     }
   };
-
-  const handleInputChange = (field, value) => {
-    setEditUser({ ...editUser, [field]: value });
-  };
+  
 
   return (
     <Box
@@ -89,7 +112,6 @@ function UserProfilePage() {
         minHeight: "100vh",
       }}
     >
-      {/* Header thông tin người dùng */}
       <Paper
         sx={{
           padding: 3,
@@ -103,7 +125,7 @@ function UserProfilePage() {
       >
         <Avatar
           alt={user.username}
-          src={user.avatar || ""}
+          src={avatarPreview || "https://example.com/default-avatar.png"}
           sx={{
             width: 120,
             height: 120,
@@ -212,53 +234,83 @@ function UserProfilePage() {
 
       {/* Dialog chỉnh sửa thông tin */}
       <Dialog open={isEditing} onClose={handleEditClose}>
-        <DialogTitle>Chỉnh sửa hồ sơ</DialogTitle>
-        <DialogContent>
-            <TextField
-                fullWidth
-                margin="dense"
-                label="Tên người dùng"
-                value={editUser.username || ""}
-                onChange={(e) => handleInputChange("username", e.target.value)}
-            />
-            <TextField
-                fullWidth
-                margin="dense"
-                label="Email"
-                value={editUser.email || ""}
-                onChange={(e) => handleInputChange("email", e.target.value)}
-            />
-            <TextField
-                fullWidth
-                margin="dense"
-                label="Nghề nghiệp"
-                value={editUser.occupation || ""}
-                onChange={(e) => handleInputChange("occupation", e.target.value)}
-            />
-            <Select
-                fullWidth
-                value={editUser.gender || ""}
-                onChange={(e) => handleInputChange("gender", e.target.value)}
-                displayEmpty
-                sx={{ marginTop: 2 }}
-            >
-                <MenuItem value="">
-                <em>Other</em>
-                </MenuItem>
-                <MenuItem value="Boy">Boy</MenuItem>
-                <MenuItem value="Girl">Girl</MenuItem>
-            </Select>
-        </DialogContent>
+      <DialogTitle>Chỉnh sửa hồ sơ</DialogTitle>
+      <DialogContent>
+        <TextField
+          fullWidth
+          margin="dense"
+          label="Tên người dùng"
+          value={editUser.username || ""}
+          onChange={(e) => handleInputChange("username", e.target.value)}
+        />
+        <TextField
+          fullWidth
+          margin="dense"
+          label="Email"
+          value={editUser.email || ""}
+          onChange={(e) => handleInputChange("email", e.target.value)}
+        />
+        <TextField
+          fullWidth
+          margin="dense"
+          label="Nghề nghiệp"
+          value={editUser.occupation || ""}
+          onChange={(e) => handleInputChange("occupation", e.target.value)}
+        />
+        <Select
+          fullWidth
+          value={editUser.gender || ""}
+          onChange={(e) => handleInputChange("gender", e.target.value)}
+          displayEmpty
+          sx={{ marginTop: 2 }}
+        >
+          <MenuItem value="">
+            <em>Other</em>
+          </MenuItem>
+          <MenuItem value="Boy">Boy</MenuItem>
+          <MenuItem value="Girl">Girl</MenuItem>
+        </Select>
 
-        <DialogActions>
-          <Button onClick={handleEditClose} color="secondary">
-            Hủy
+        {/* Input để chọn avatar */}
+        <Box sx={{ marginTop: 2, textAlign: "center" }}>
+          <Avatar
+            src={
+              avatarPreview || user.avatar || "https://example.com/default-avatar.png"
+            }
+            alt="Avatar Preview"
+            sx={{
+              width: 80,
+              height: 80,
+              margin: "0 auto",
+              marginBottom: 1,
+            }}
+          />
+          <Button
+            variant="contained"
+            component="label"
+            sx={{ backgroundColor: "#e50914", "&:hover": { backgroundColor: "#f40612" } }}
+          >
+            Upload Avatar
+            <input
+              type="file"
+              hidden
+              accept="image/*"
+              onChange={handleAvatarChange}
+            />
           </Button>
-          <Button onClick={handleSaveChanges} color="primary">
-            Lưu
-          </Button>
-        </DialogActions>
-      </Dialog>
+        </Box>
+      </DialogContent>
+
+      <DialogActions>
+        <Button onClick={handleEditClose} color="secondary">
+          Hủy
+        </Button>
+        <Button onClick={handleSaveChanges} color="primary">
+          Lưu
+        </Button>
+      </DialogActions>
+    </Dialog>
+
     </Box>
   );
 }

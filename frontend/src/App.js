@@ -7,6 +7,7 @@ import Register from "./components/Register";
 import LoginPage from "./pages/LoginPage";
 import RecommendationPage from "./pages/RecommendationPage";
 import UserProfilePage from "./pages/UserProfilePage";
+import SearchResultsPage from "./pages/SearchResultsPage";
 import {
   CssBaseline,
   Box,
@@ -62,11 +63,34 @@ function App() {
     setIsAuthenticated(true);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    delete axios.defaults.headers.common["Authorization"];
-    setIsAuthenticated(false);
+  const handleLogout = async () => {
+    try {
+      // Gọi API logout
+      await axios.post('/api/logout/', null, {
+        headers: { Authorization: `Token ${localStorage.getItem("token")}` },
+      });
+  
+      // Xóa token khỏi localStorage và axios
+      localStorage.removeItem("token");
+      delete axios.defaults.headers.common["Authorization"];
+  
+      // Xóa tất cả cache trên trình duyệt
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map(name => caches.delete(name)));
+      }
+  
+      // Cập nhật trạng thái xác thực
+      setIsAuthenticated(false);
+  
+      // Điều hướng về trang login
+      // navigate("/login");
+    } catch (error) {
+      console.error("Logout failed:", error.response?.data || error.message);
+      alert("Đăng xuất không thành công. Vui lòng thử lại!");
+    }
   };
+  
 
   if (isLoading) {
     // Hiển thị vòng xoay loading khi đang kiểm tra trạng thái xác thực
@@ -196,6 +220,16 @@ function App() {
           {isAuthenticated ? (
             <>
               <Route path="/" element={<HomePage />} />
+              <Route
+                path="/search-results"
+                element={
+                  <SearchResultsPage
+                    searchQuery={window.history.state?.state?.searchQuery || ""}
+                    searchResults={window.history.state?.state?.searchResults || []}
+                  />
+                }
+              />
+
               <Route path="/movie/:id" element={<MovieDetail />} />
               <Route path="/recommendations" element={<RecommendationPage />} />
               <Route path="/profile" element={<UserProfilePage />} />
