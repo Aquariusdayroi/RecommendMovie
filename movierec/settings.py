@@ -33,6 +33,7 @@ ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
 # Application definition
 
 INSTALLED_APPS = [
+    'django_extensions',
     'rest_framework',
     'rest_framework.authtoken', 
     'recomendation',
